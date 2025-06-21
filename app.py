@@ -308,7 +308,7 @@ def show_user_profile_page(components):
             color_continuous_scale='Blues'
         )
         fig.update_layout(height=300, showlegend=False)
-        fig.update_xaxis(tickangle=45)
+        fig.update_xaxes(tickangle=45)
         st.plotly_chart(fig, use_container_width=True)
     
     # Store profile in session state
@@ -420,7 +420,7 @@ def show_portfolio_analysis_page(components):
                     color_continuous_scale='Greens'
                 )
                 fig.update_layout(height=400, showlegend=False)
-                fig.update_xaxis(tickangle=45)
+                fig.update_xaxes(tickangle=45)
                 st.plotly_chart(fig, use_container_width=True)
             
             with col2:
@@ -473,7 +473,7 @@ def show_portfolio_analysis_page(components):
                         color_continuous_scale='Blues'
                     )
                     fig.update_layout(height=400, showlegend=False)
-                    fig.update_xaxis(tickangle=45)
+                    fig.update_xaxes(tickangle=45)
                     st.plotly_chart(fig, use_container_width=True)
                 
                 with col2:
