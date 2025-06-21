@@ -45,99 +45,39 @@ class ADAPTIndexComparison:
             'SBILIFE.NS', 'HDFCLIFE.NS', 'INDUSINDBK.NS', 'MM.NS', 'BPCL.NS'
         ]
     
-    def generate_synthetic_data(self):
+    def fetch_real_market_data(self):
         """
-        Generate synthetic market data for the specified period.
+        Fetch authentic market data from Yahoo Finance for the specified period.
         
         Returns:
-            Dictionary mapping stock symbols to price data DataFrames
+            Dictionary mapping stock symbols to price data DataFrames or error details
         """
-        print(f"Generating synthetic market data for period: {self.start_date} to {self.end_date}")
+        print(f"Fetching real market data for period: {self.start_date} to {self.end_date}")
         
-        # Create date range
-        date_range = pd.date_range(start=self.start_date, end=self.end_date, freq='D')
-        # Remove weekends
-        date_range = date_range[date_range.weekday < 5]
+        market_data = {}
+        failed_symbols = []
         
-        # Generate synthetic data for each stock
-        synthetic_data = {}
+        for stock in self.nifty_stocks:
+            try:
+                data = yf.download(stock, start=self.start_date, end=self.end_date, progress=False)
+                if data.empty:
+                    failed_symbols.append(stock)
+                    print(f"No data available for {stock}")
+                else:
+                    market_data[stock] = data
+                    print(f"Successfully fetched data for {stock}: {len(data)} days")
+            except Exception as e:
+                failed_symbols.append(stock)
+                print(f"Error fetching {stock}: {e}")
         
-        for i, stock in enumerate(self.nifty_stocks):
-            # Generate realistic price movements with stock-specific characteristics
-            np.random.seed(hash(stock) % 1000 + i)  # Consistent but different seed for each stock
-            
-            # Stock-specific parameters
-            if 'BANK' in stock or stock in ['HDFCBANK.NS', 'ICICIBANK.NS', 'KOTAKBANK.NS']:
-                # Banking stocks - moderate volatility
-                initial_price = np.random.uniform(500, 2000)
-                annual_return = np.random.uniform(0.08, 0.15)
-                annual_volatility = np.random.uniform(0.20, 0.35)
-            elif stock in ['TCS.NS', 'INFY.NS', 'HCLTECH.NS', 'WIPRO.NS', 'TECHM.NS']:
-                # IT stocks - higher growth potential
-                initial_price = np.random.uniform(1000, 4000)
-                annual_return = np.random.uniform(0.10, 0.20)
-                annual_volatility = np.random.uniform(0.25, 0.40)
-            elif stock in ['RELIANCE.NS', 'ONGC.NS', 'BPCL.NS']:
-                # Energy stocks - high volatility
-                initial_price = np.random.uniform(200, 3000)
-                annual_return = np.random.uniform(0.05, 0.18)
-                annual_volatility = np.random.uniform(0.30, 0.50)
-            else:
-                # Other stocks - mixed characteristics
-                initial_price = np.random.uniform(100, 2500)
-                annual_return = np.random.uniform(0.06, 0.16)
-                annual_volatility = np.random.uniform(0.20, 0.40)
-            
-            # Convert to daily parameters
-            daily_return = annual_return / 252
-            daily_volatility = annual_volatility / np.sqrt(252)
-            
-            # Generate daily returns with realistic patterns
-            returns = np.random.normal(daily_return, daily_volatility, len(date_range))
-            
-            # Add market trends and cycles
-            trend_component = np.linspace(0, annual_return * 0.3, len(date_range)) / 252
-            cycle_component = 0.02 * np.sin(2 * np.pi * np.arange(len(date_range)) / 252)
-            
-            # Add some correlation with market (simulate market beta)
-            market_beta = np.random.uniform(0.7, 1.3)
-            market_returns = np.random.normal(0.0006, 0.018, len(date_range))  # Market returns
-            
-            # Combine all factors
-            total_returns = (
-                returns + 
-                trend_component + 
-                cycle_component / 252 + 
-                market_beta * market_returns * 0.3  # Partial correlation with market
-            )
-            
-            # Calculate cumulative prices
-            cumulative_returns = np.cumprod(1 + total_returns)
-            prices = initial_price * cumulative_returns
-            
-            # Generate OHLC data with realistic spreads
-            high_multiplier = 1 + np.random.uniform(0.005, 0.025, len(date_range))
-            low_multiplier = 1 - np.random.uniform(0.005, 0.025, len(date_range))
-            
-            # Ensure High >= Close >= Low
-            highs = prices * high_multiplier
-            lows = prices * low_multiplier
-            opens = prices * np.random.uniform(0.995, 1.005, len(date_range))
-            
-            # Generate volume with some correlation to price movements
-            base_volume = np.random.uniform(1000000, 15000000)
-            volume_multiplier = 1 + 0.5 * np.abs(total_returns) + np.random.uniform(-0.2, 0.2, len(date_range))
-            volumes = base_volume * volume_multiplier
-            
-            synthetic_data[stock] = pd.DataFrame({
-                'Open': opens,
-                'High': highs,
-                'Low': lows,
-                'Close': prices,
-                'Volume': volumes
-            }, index=date_range)
+        if len(market_data) == 0:
+            raise ValueError(f"No authentic market data available for any stocks. All {len(self.nifty_stocks)} symbols failed. Yahoo Finance API may require authentication.")
         
-        return synthetic_data
+        if len(failed_symbols) > len(self.nifty_stocks) * 0.7:  # More than 70% failed
+            raise ValueError(f"Insufficient authentic data: only {len(market_data)}/{len(self.nifty_stocks)} stocks available. Cannot proceed with reliable analysis.")
+        
+        print(f"Market data fetch complete: {len(market_data)} successful, {len(failed_symbols)} failed")
+        return market_data
     
     def create_profile_portfolios(self):
         """

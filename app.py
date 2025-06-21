@@ -1176,11 +1176,28 @@ def show_enhanced_backtesting_page(components):
     
     # Data source selection
     st.subheader("📈 Data Source Configuration")
-    data_source = st.radio(
-        "Select data source:",
-        ["Real-time (Yahoo Finance)", "Enhanced Simulation"],
-        help="Real-time data provides actual market performance but may have API limitations"
-    )
+    st.info("🔄 **Real-time Yahoo Finance Data Only** - No synthetic or simulated data")
+    
+    st.warning("⚠️ **Authentication Required**: Yahoo Finance may require proper API credentials for consistent access")
+    
+    with st.expander("📋 Data Source Requirements"):
+        st.markdown("""
+        **This system exclusively uses authentic market data from:**
+        - Yahoo Finance API (real-time stock prices)
+        - Actual historical market data
+        - Live technical indicators calculated from real prices
+        
+        **Important Limitations:**
+        - No fallback or synthetic data
+        - Requires active internet connection
+        - May fail during API rate limits
+        - Market hours: 9:15 AM - 3:30 PM IST (Indian stocks)
+        
+        **For production deployment:**
+        - Consider premium data providers (Alpha Vantage, Quandl)
+        - Implement proper API authentication
+        - Add error handling for market closures
+        """)
     
     if st.button("🚀 Run Enhanced Backtest", type="primary"):
         with st.spinner("Running enhanced backtest with real-time data..."):
@@ -1488,68 +1505,33 @@ def show_enhanced_backtesting_page(components):
                 
             except Exception as e:
                 st.error(f"Enhanced backtest failed: {str(e)}")
-                st.info("Using fallback analysis with synthetic data...")
                 
-                # Fallback with improved simulation
-                fallback_results = generate_enhanced_fallback_results(
-                    profile_type, initial_capital, backtest_period
-                )
-                
-                st.subheader("📊 Enhanced Simulation Results")
-                metrics = fallback_results['metrics']
-                
-                col1, col2, col3, col4 = st.columns(4)
-                
-                with col1:
-                    st.metric("Total Return", f"{metrics['total_return']:.2f}%")
-                
-                with col2:
-                    st.metric("Annualized Return", f"{metrics['annualized_return']:.2f}%")
-                
-                with col3:
-                    st.metric("Sharpe Ratio", f"{metrics['sharpe_ratio']:.2f}")
-                
-                with col4:
-                    st.metric("Max Drawdown", f"{metrics['max_drawdown']:.2f}%")
+                # Check if this is a data availability issue
+                if "401" in str(e) or "404" in str(e) or "data" in str(e).lower():
+                    st.warning("⚠️ Real-time market data is currently unavailable")
+                    st.info("This appears to be due to Yahoo Finance API limitations or authentication requirements.")
+                    
+                    with st.expander("💡 Why is real data unavailable?"):
+                        st.markdown("""
+                        **Common reasons for data unavailability:**
+                        - Yahoo Finance API rate limits or authentication requirements
+                        - Market hours restrictions (Indian markets: 9:15 AM - 3:30 PM IST)
+                        - Stock symbol changes or delistings
+                        - Network connectivity issues
+                        
+                        **For production use, consider:**
+                        - Premium data providers (Alpha Vantage, Quandl, Bloomberg API)
+                        - Authenticated Yahoo Finance access
+                        - Market data subscriptions
+                        """)
+                    
+                    st.error("❌ Cannot proceed without authentic market data")
+                    st.info("Please try again during market hours or with proper API credentials")
+                else:
+                    st.error("❌ System error occurred during backtesting")
+                    st.info("Please check your inputs and try again")
 
-def generate_enhanced_fallback_results(profile_type, initial_capital, period):
-    """Generate enhanced fallback results for demonstration."""
-    # Improved simulation based on profile characteristics
-    if profile_type == "Conservative":
-        base_return = 12.5
-        volatility = 8.0
-        sharpe = 0.85
-        max_dd = -5.2
-    elif profile_type == "Moderate":
-        base_return = 15.8
-        volatility = 12.0
-        sharpe = 1.15
-        max_dd = -7.8
-    else:  # Aggressive
-        base_return = 18.9
-        volatility = 16.5
-        sharpe = 1.35
-        max_dd = -12.5
-    
-    # Adjust for period
-    period_multiplier = {
-        "3 Months": 0.25, "6 Months": 0.5, "1 Year": 1.0,
-        "2 Years": 2.0, "3 Years": 3.0
-    }
-    
-    multiplier = period_multiplier.get(period, 1.0)
-    total_return = base_return * multiplier
-    
-    return {
-        'metrics': {
-            'total_return': total_return,
-            'annualized_return': base_return,
-            'sharpe_ratio': sharpe,
-            'max_drawdown': max_dd,
-            'volatility': volatility,
-            'final_value': initial_capital * (1 + total_return/100)
-        }
-    }
+
 
 def show_ai_explainability_page(components):
     """Show AI explainability page with transparent portfolio recommendations."""

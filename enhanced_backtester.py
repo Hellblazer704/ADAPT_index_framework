@@ -233,7 +233,11 @@ class EnhancedBacktester:
             
         except Exception as e:
             print(f"Error in portfolio backtest: {e}")
-            return self._generate_fallback_results(portfolio_weights, start_date, end_date, initial_capital)
+            return {
+                'error': f"Real-time data unavailable: {str(e)}",
+                'message': 'Unable to fetch authentic market data. Please try again later or check your internet connection.',
+                'data_source': 'Failed - No authentic data available'
+            }
     
     def _run_single_stock_backtest(self, data: pd.DataFrame, symbol: str, capital: float) -> Dict[str, Any]:
         """Run detailed backtest on individual stock"""
@@ -430,71 +434,25 @@ class EnhancedBacktester:
         
         return analysis
     
-    def _generate_fallback_results(self, portfolio_weights: Dict[str, float], 
-                                 start_date: str, end_date: str, 
-                                 initial_capital: float) -> Dict[str, Any]:
-        """Generate enhanced fallback results when real data fails"""
+    def _validate_data_availability(self, portfolio_weights: Dict[str, float]) -> Dict[str, Any]:
+        """Validate that authentic market data is available for all portfolio stocks"""
         
-        # Generate more realistic synthetic data based on portfolio composition
-        date_range = pd.date_range(start=start_date, end=end_date, freq='D')
+        unavailable_stocks = []
         
-        # Analyze portfolio composition for return estimation
-        total_stocks = len(portfolio_weights)
-        avg_weight = 100 / total_stocks if total_stocks > 0 else 0
-        concentration = max(portfolio_weights.values()) if portfolio_weights else 0
+        for symbol in portfolio_weights.keys():
+            try:
+                # Quick test to see if data is available
+                test_data = yf.download(symbol, period="5d", progress=False)
+                if test_data is None or test_data.empty:
+                    unavailable_stocks.append(symbol)
+            except Exception:
+                unavailable_stocks.append(symbol)
         
-        # Estimate returns based on portfolio characteristics
-        if concentration > 15:  # High concentration
-            base_return = 0.10
-            volatility = 0.20
-        elif avg_weight > 5:  # Well diversified
-            base_return = 0.12
-            volatility = 0.16
-        else:  # Over-diversified
-            base_return = 0.09
-            volatility = 0.14
-        
-        # Generate synthetic returns with market-like characteristics
-        np.random.seed(42)
-        daily_returns = np.random.normal(base_return/252, volatility/np.sqrt(252), len(date_range))
-        
-        # Add market cycles and trends
-        trend = np.linspace(0, 0.03, len(date_range))
-        cycle = 0.02 * np.sin(2 * np.pi * np.arange(len(date_range)) / 252)
-        
-        total_returns = daily_returns + trend/252 + cycle/252
-        portfolio_returns = pd.Series(total_returns, index=date_range)
-        
-        # Calculate realistic metrics
-        total_return = (1 + portfolio_returns).prod() - 1
-        num_years = len(portfolio_returns) / 252
-        annualized_return = (1 + total_return) ** (1/num_years) - 1
-        
-        metrics = {
-            'total_return': total_return,
-            'annualized_return': annualized_return,
-            'volatility': portfolio_returns.std() * np.sqrt(252),
-            'sharpe_ratio': (annualized_return - 0.06) / (portfolio_returns.std() * np.sqrt(252)),
-            'max_drawdown': -0.08,  # Reasonable estimate
-            'final_value': initial_capital * (1 + total_return),
-            'beta': 0.95,
-            'alpha': annualized_return - 0.11  # Assume market return of 11%
-        }
-        
-        return {
-            'portfolio_returns': portfolio_returns,
-            'portfolio_values': initial_capital * (1 + portfolio_returns).cumprod(),
-            'performance_metrics': metrics,
-            'individual_results': {},
-            'analysis': {
-                'summary': f"Enhanced simulation shows {annualized_return*100:.2f}% annualized return",
-                'data_note': 'Results based on enhanced modeling due to data limitations'
-            },
-            'backtest_config': {
-                'start_date': start_date,
-                'end_date': end_date,
-                'initial_capital': initial_capital,
-                'num_stocks': len(portfolio_weights),
-                'data_source': 'Enhanced Simulation'
+        if unavailable_stocks:
+            return {
+                'error': f"Real-time data unavailable for {len(unavailable_stocks)} stocks: {', '.join(unavailable_stocks[:5])}{'...' if len(unavailable_stocks) > 5 else ''}",
+                'message': 'Cannot proceed without authentic market data for all portfolio stocks.',
+                'data_source': 'Failed - Authentication or API limits exceeded'
             }
-        }
+        
+        return {'success': True}
