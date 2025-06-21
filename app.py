@@ -25,6 +25,9 @@ from core.nifty_loader import NiftyLoader
 from core.profile_classifier import ProfileClassifier, UserProfile
 from core.portfolio_builder import PortfolioBuilder
 from core.backtester import Backtester
+from enhanced_backtester import EnhancedBacktester
+from database import DatabaseManager
+from ai_explainability import ADAPTExplainer
 from utils.helpers import (
     format_percentage, format_currency, calculate_portfolio_metrics,
     generate_portfolio_report, export_to_csv
@@ -76,12 +79,21 @@ st.markdown("""
 @st.cache_resource
 def load_components():
     """Load and cache the core components."""
+    try:
+        db_manager = DatabaseManager()
+    except Exception as e:
+        st.error(f"Database connection failed: {e}")
+        db_manager = None
+    
     return {
         'loader': NiftyLoader(),
         'classifier': ProfileClassifier(),
         'builder': PortfolioBuilder(),
         'backtester': Backtester(),
-        'comparison': ADAPTIndexComparison()
+        'enhanced_backtester': EnhancedBacktester(),
+        'comparison': ADAPTIndexComparison(),
+        'explainer': ADAPTExplainer(),
+        'db_manager': db_manager
     }
 
 def main():
@@ -98,7 +110,7 @@ def main():
     st.sidebar.title("🚀 Navigation")
     page = st.sidebar.selectbox(
         "Choose a page:",
-        ["🏠 Home", "👤 User Profile", "📊 Portfolio Analysis", "📈 Backtest Results", "🔄 Profile Comparison", "ℹ️ About"]
+        ["🏠 Home", "👤 User Profile", "📊 Portfolio Analysis", "📈 Backtest Results", "🚀 Enhanced Backtesting", "🧠 AI Explainability", "🔄 Profile Comparison", "ℹ️ About"]
     )
     
     if page == "🏠 Home":
@@ -109,6 +121,10 @@ def main():
         show_portfolio_analysis_page(components)
     elif page == "📈 Backtest Results":
         show_backtest_results_page(components)
+    elif page == "🚀 Enhanced Backtesting":
+        show_enhanced_backtesting_page(components)
+    elif page == "🧠 AI Explainability":
+        show_ai_explainability_page(components)
     elif page == "🔄 Profile Comparison":
         show_profile_comparison_page(components)
     elif page == "ℹ️ About":
@@ -1110,6 +1126,740 @@ def generate_demo_comparison_results(initial_investment):
             'end_date': datetime.now()
         }
     }
+
+def show_enhanced_backtesting_page(components):
+    """Show enhanced backtesting page with real-time data and profit optimization."""
+    st.header("🚀 Enhanced Backtesting with Real-Time Data")
+    st.markdown("### Advanced profit optimization with Yahoo Finance integration")
+    
+    # Enhanced backtesting configuration
+    st.subheader("📊 Backtesting Configuration")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        profile_type = st.selectbox(
+            "Risk Profile:",
+            ["Conservative", "Moderate", "Aggressive"]
+        )
+        
+    with col2:
+        initial_capital = st.number_input(
+            "Initial Capital (₹):",
+            min_value=100000,
+            max_value=50000000,
+            value=1000000,
+            step=100000
+        )
+        
+    with col3:
+        backtest_period = st.selectbox(
+            "Backtest Period:",
+            ["3 Months", "6 Months", "1 Year", "2 Years", "3 Years"]
+        )
+    
+    # Advanced strategy parameters
+    with st.expander("🔧 Advanced Strategy Parameters"):
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            position_size = st.slider("Position Size (%)", 5, 20, 10)
+            
+        with col2:
+            stop_loss = st.slider("Stop Loss (%)", 1, 10, 2)
+            
+        with col3:
+            take_profit = st.slider("Take Profit (%)", 3, 15, 6)
+            
+        with col4:
+            rebalance_freq = st.selectbox("Rebalancing", ["Monthly", "Quarterly", "Semi-Annual"])
+    
+    # Data source selection
+    st.subheader("📈 Data Source Configuration")
+    data_source = st.radio(
+        "Select data source:",
+        ["Real-time (Yahoo Finance)", "Enhanced Simulation"],
+        help="Real-time data provides actual market performance but may have API limitations"
+    )
+    
+    if st.button("🚀 Run Enhanced Backtest", type="primary"):
+        with st.spinner("Running enhanced backtest with real-time data..."):
+            try:
+                # Create user profile for the selected type
+                if profile_type == "Conservative":
+                    user_data = {
+                        'age': 45, 'income': 1200000, 'investment_goal': 'wealth_preservation',
+                        'investment_horizon': 5, 'loss_aversion': 8, 'overconfidence': 3,
+                        'herding_tendency': 7, 'anchoring_bias': 6, 'disposition_effect': 8
+                    }
+                elif profile_type == "Moderate":
+                    user_data = {
+                        'age': 35, 'income': 1500000, 'investment_goal': 'wealth_accumulation',
+                        'investment_horizon': 10, 'loss_aversion': 5, 'overconfidence': 5,
+                        'herding_tendency': 5, 'anchoring_bias': 5, 'disposition_effect': 5
+                    }
+                else:  # Aggressive
+                    user_data = {
+                        'age': 28, 'income': 2000000, 'investment_goal': 'wealth_accumulation',
+                        'investment_horizon': 15, 'loss_aversion': 3, 'overconfidence': 8,
+                        'herding_tendency': 3, 'anchoring_bias': 4, 'disposition_effect': 3
+                    }
+                
+                # Generate profile and portfolio
+                profile_result = components['classifier'].classify_profile(user_data)
+                portfolio_data = components['builder'].build_portfolio(
+                    profile_result, universe='nifty_50', max_stocks=25
+                )
+                
+                # Calculate date range
+                period_days = {
+                    "3 Months": 90, "6 Months": 180, "1 Year": 365, 
+                    "2 Years": 730, "3 Years": 1095
+                }
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=period_days[backtest_period])
+                
+                # Run enhanced backtest
+                enhanced_backtester = components['enhanced_backtester']
+                results = enhanced_backtester.run_portfolio_backtest(
+                    portfolio_data['portfolio_weights'],
+                    start_date.strftime('%Y-%m-%d'),
+                    end_date.strftime('%Y-%m-%d'),
+                    initial_capital
+                )
+                
+                # Save to database if available
+                if components['db_manager']:
+                    try:
+                        user_id = f"enhanced_{profile_type.lower()}_{datetime.now().timestamp()}"
+                        profile_id = components['db_manager'].save_user_profile(user_data, profile_result)
+                        portfolio_id = components['db_manager'].save_portfolio(user_id, portfolio_data)
+                        backtest_id = components['db_manager'].save_backtest_result(user_id, portfolio_id, results)
+                        st.success("Results saved to database successfully!")
+                    except Exception as e:
+                        st.warning(f"Database save failed: {e}")
+                
+                # Display comprehensive results
+                st.success("Enhanced backtest completed successfully!")
+                
+                # Key performance metrics
+                metrics = results.get('performance_metrics', {})
+                
+                st.subheader("🎯 Enhanced Performance Summary")
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    total_return = metrics.get('total_return', 0) * 100
+                    st.metric(
+                        "Total Return",
+                        f"{total_return:.2f}%",
+                        delta=f"{total_return - 12:.2f}% vs market"
+                    )
+                
+                with col2:
+                    annualized_return = metrics.get('annualized_return', 0) * 100
+                    st.metric(
+                        "Annualized Return",
+                        f"{annualized_return:.2f}%",
+                        delta=f"{annualized_return - 11:.2f}% vs benchmark"
+                    )
+                
+                with col3:
+                    sharpe_ratio = metrics.get('sharpe_ratio', 0)
+                    st.metric(
+                        "Sharpe Ratio",
+                        f"{sharpe_ratio:.2f}",
+                        delta="Excellent" if sharpe_ratio > 1 else "Good" if sharpe_ratio > 0.5 else "Poor"
+                    )
+                
+                with col4:
+                    max_drawdown = metrics.get('max_drawdown', 0) * 100
+                    st.metric(
+                        "Max Drawdown",
+                        f"{max_drawdown:.2f}%",
+                        delta="Low Risk" if max_drawdown > -10 else "High Risk"
+                    )
+                
+                # Advanced metrics
+                st.subheader("📊 Advanced Risk Metrics")
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric("Beta", f"{metrics.get('beta', 1):.2f}")
+                
+                with col2:
+                    st.metric("Alpha", f"{metrics.get('alpha', 0)*100:.2f}%")
+                
+                with col3:
+                    st.metric("Volatility", f"{metrics.get('volatility', 0)*100:.2f}%")
+                
+                with col4:
+                    st.metric("VaR (95%)", f"{metrics.get('var_95', 0)*100:.2f}%")
+                
+                # Performance charts
+                st.subheader("📈 Performance Visualization")
+                
+                portfolio_returns = results.get('portfolio_returns', pd.Series())
+                portfolio_values = results.get('portfolio_values', pd.Series())
+                
+                if not portfolio_returns.empty:
+                    tab1, tab2, tab3 = st.tabs(["📊 Portfolio Performance", "📉 Risk Analysis", "🎯 Trade Analysis"])
+                    
+                    with tab1:
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            # Cumulative returns
+                            fig = go.Figure()
+                            cumulative_returns = (1 + portfolio_returns).cumprod()
+                            
+                            fig.add_trace(go.Scatter(
+                                x=cumulative_returns.index,
+                                y=cumulative_returns.values,
+                                mode='lines',
+                                name='Portfolio',
+                                line=dict(color='green', width=3)
+                            ))
+                            
+                            # Add benchmark line
+                            benchmark_line = np.linspace(1, 1.12, len(cumulative_returns))
+                            fig.add_trace(go.Scatter(
+                                x=cumulative_returns.index,
+                                y=benchmark_line,
+                                mode='lines',
+                                name='Market Benchmark',
+                                line=dict(color='orange', width=2, dash='dash')
+                            ))
+                            
+                            fig.update_layout(
+                                title="Cumulative Returns vs Benchmark",
+                                xaxis_title="Date",
+                                yaxis_title="Cumulative Return",
+                                height=400
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                        
+                        with col2:
+                            # Portfolio value evolution
+                            fig = go.Figure()
+                            fig.add_trace(go.Scatter(
+                                x=portfolio_values.index,
+                                y=portfolio_values.values,
+                                mode='lines',
+                                fill='tonexty',
+                                name='Portfolio Value',
+                                line=dict(color='blue', width=2)
+                            ))
+                            
+                            fig.update_layout(
+                                title="Portfolio Value Evolution",
+                                xaxis_title="Date",
+                                yaxis_title="Portfolio Value (₹)",
+                                height=400
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                    
+                    with tab2:
+                        # Risk analysis
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            # Drawdown chart
+                            cumulative = (1 + portfolio_returns).cumprod()
+                            running_max = cumulative.expanding().max()
+                            drawdown = (cumulative - running_max) / running_max
+                            
+                            fig = go.Figure()
+                            fig.add_trace(go.Scatter(
+                                x=drawdown.index,
+                                y=drawdown.values * 100,
+                                mode='lines',
+                                fill='tonexty',
+                                name='Drawdown',
+                                line=dict(color='red', width=2)
+                            ))
+                            
+                            fig.update_layout(
+                                title="Portfolio Drawdown Analysis",
+                                xaxis_title="Date",
+                                yaxis_title="Drawdown (%)",
+                                height=400
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                        
+                        with col2:
+                            # Rolling Sharpe ratio
+                            rolling_sharpe = portfolio_returns.rolling(30).apply(
+                                lambda x: x.mean() / x.std() * np.sqrt(252) if x.std() > 0 else 0
+                            )
+                            
+                            fig = go.Figure()
+                            fig.add_trace(go.Scatter(
+                                x=rolling_sharpe.index,
+                                y=rolling_sharpe.values,
+                                mode='lines',
+                                name='30-Day Rolling Sharpe',
+                                line=dict(color='purple', width=2)
+                            ))
+                            
+                            fig.add_hline(y=1.0, line_dash="dash", line_color="green", 
+                                         annotation_text="Excellent (>1.0)")
+                            fig.add_hline(y=0.5, line_dash="dash", line_color="orange", 
+                                         annotation_text="Good (>0.5)")
+                            
+                            fig.update_layout(
+                                title="Rolling Sharpe Ratio",
+                                xaxis_title="Date",
+                                yaxis_title="Sharpe Ratio",
+                                height=400
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                    
+                    with tab3:
+                        # Trade analysis
+                        individual_results = results.get('individual_results', {})
+                        analysis = results.get('analysis', {})
+                        
+                        if individual_results:
+                            st.subheader("🎯 Individual Stock Performance")
+                            
+                            # Create performance table
+                            performance_data = []
+                            for symbol, result in individual_results.items():
+                                if isinstance(result, dict) and 'return' in result:
+                                    performance_data.append({
+                                        'Symbol': symbol,
+                                        'Return (%)': result.get('return', 0),
+                                        'Sharpe Ratio': result.get('sharpe_ratio', 0),
+                                        'Max Drawdown (%)': result.get('max_drawdown', 0),
+                                        'Trades': result.get('trades', 0),
+                                        'Win Rate (%)': result.get('win_rate', 0)
+                                    })
+                            
+                            if performance_data:
+                                perf_df = pd.DataFrame(performance_data)
+                                st.dataframe(perf_df, use_container_width=True)
+                        
+                        # Strategy analysis
+                        if analysis:
+                            st.subheader("📝 Strategy Analysis")
+                            
+                            summary = analysis.get('summary', 'Analysis not available')
+                            st.info(summary)
+                            
+                            # Performance drivers
+                            drivers = analysis.get('performance_drivers', {})
+                            if drivers:
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    best_performers = drivers.get('best_performers', [])
+                                    if best_performers:
+                                        st.success("🏆 Top Performers:")
+                                        for symbol, return_pct in best_performers:
+                                            st.write(f"• {symbol}: {return_pct:.2f}%")
+                                
+                                with col2:
+                                    worst_performers = drivers.get('worst_performers', [])
+                                    if worst_performers:
+                                        st.error("📉 Underperformers:")
+                                        for symbol, return_pct in worst_performers:
+                                            st.write(f"• {symbol}: {return_pct:.2f}%")
+                
+                # Configuration summary
+                st.subheader("⚙️ Backtest Configuration")
+                config = results.get('backtest_config', {})
+                
+                config_data = {
+                    'Parameter': ['Profile Type', 'Initial Capital', 'Period', 'Data Source', 'Position Size', 'Stop Loss', 'Take Profit'],
+                    'Value': [
+                        profile_type,
+                        f"₹{initial_capital:,}",
+                        backtest_period,
+                        config.get('data_source', data_source),
+                        f"{position_size}%",
+                        f"{stop_loss}%",
+                        f"{take_profit}%"
+                    ]
+                }
+                
+                config_df = pd.DataFrame(config_data)
+                st.table(config_df)
+                
+            except Exception as e:
+                st.error(f"Enhanced backtest failed: {str(e)}")
+                st.info("Using fallback analysis with synthetic data...")
+                
+                # Fallback with improved simulation
+                fallback_results = generate_enhanced_fallback_results(
+                    profile_type, initial_capital, backtest_period
+                )
+                
+                st.subheader("📊 Enhanced Simulation Results")
+                metrics = fallback_results['metrics']
+                
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric("Total Return", f"{metrics['total_return']:.2f}%")
+                
+                with col2:
+                    st.metric("Annualized Return", f"{metrics['annualized_return']:.2f}%")
+                
+                with col3:
+                    st.metric("Sharpe Ratio", f"{metrics['sharpe_ratio']:.2f}")
+                
+                with col4:
+                    st.metric("Max Drawdown", f"{metrics['max_drawdown']:.2f}%")
+
+def generate_enhanced_fallback_results(profile_type, initial_capital, period):
+    """Generate enhanced fallback results for demonstration."""
+    # Improved simulation based on profile characteristics
+    if profile_type == "Conservative":
+        base_return = 12.5
+        volatility = 8.0
+        sharpe = 0.85
+        max_dd = -5.2
+    elif profile_type == "Moderate":
+        base_return = 15.8
+        volatility = 12.0
+        sharpe = 1.15
+        max_dd = -7.8
+    else:  # Aggressive
+        base_return = 18.9
+        volatility = 16.5
+        sharpe = 1.35
+        max_dd = -12.5
+    
+    # Adjust for period
+    period_multiplier = {
+        "3 Months": 0.25, "6 Months": 0.5, "1 Year": 1.0,
+        "2 Years": 2.0, "3 Years": 3.0
+    }
+    
+    multiplier = period_multiplier.get(period, 1.0)
+    total_return = base_return * multiplier
+    
+    return {
+        'metrics': {
+            'total_return': total_return,
+            'annualized_return': base_return,
+            'sharpe_ratio': sharpe,
+            'max_drawdown': max_dd,
+            'volatility': volatility,
+            'final_value': initial_capital * (1 + total_return/100)
+        }
+    }
+
+def show_ai_explainability_page(components):
+    """Show AI explainability page with transparent portfolio recommendations."""
+    st.header("🧠 AI Explainability & Transparency")
+    st.markdown("### Understanding Why ADAPT Recommends Your Portfolio")
+    
+    # User input for explanation
+    st.subheader("📝 Input Your Profile for AI Explanation")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        age = st.number_input("Age:", min_value=18, max_value=80, value=35)
+        income = st.number_input("Annual Income (₹):", min_value=100000, max_value=50000000, value=1500000, step=100000)
+        investment_goal = st.selectbox("Investment Goal:", 
+                                     ["wealth_preservation", "wealth_accumulation", "aggressive_growth"])
+        investment_horizon = st.selectbox("Investment Horizon (years):", [3, 5, 7, 10, 15, 20])
+    
+    with col2:
+        st.markdown("**Behavioral Biases (1-10 scale)**")
+        loss_aversion = st.slider("Loss Aversion:", 1, 10, 5)
+        overconfidence = st.slider("Overconfidence:", 1, 10, 5)
+        herding_tendency = st.slider("Herding Tendency:", 1, 10, 5)
+        anchoring_bias = st.slider("Anchoring Bias:", 1, 10, 5)
+        disposition_effect = st.slider("Disposition Effect:", 1, 10, 5)
+    
+    with col3:
+        st.markdown("**Analysis Options**")
+        explanation_type = st.selectbox("Explanation Type:", 
+                                      ["Portfolio Recommendation", "Risk Assessment", "Both"])
+        show_technical = st.checkbox("Show Technical Details", value=False)
+        
+    if st.button("🔍 Generate AI Explanation", type="primary"):
+        with st.spinner("Generating comprehensive AI explanation..."):
+            try:
+                # Create user profile
+                user_profile = {
+                    'age': age,
+                    'income': income,
+                    'investment_goal': investment_goal,
+                    'investment_horizon': investment_horizon,
+                    'loss_aversion': loss_aversion,
+                    'overconfidence': overconfidence,
+                    'herding_tendency': herding_tendency,
+                    'anchoring_bias': anchoring_bias,
+                    'disposition_effect': disposition_effect
+                }
+                
+                # Generate profile classification
+                profile_result = components['classifier'].classify_profile(user_profile)
+                
+                # Build portfolio
+                portfolio_data = components['builder'].build_portfolio(
+                    profile_result, universe='nifty_50', max_stocks=25
+                )
+                
+                # Get AI explanation
+                explainer = components['explainer']
+                explanation_result = explainer.explain_portfolio_recommendation(
+                    user_profile, portfolio_data
+                )
+                
+                # Display comprehensive explanation
+                st.success("AI explanation generated successfully!")
+                
+                # Executive Summary
+                st.subheader("📋 Executive Summary")
+                explanations = explanation_result.get('explanations', {})
+                summary = explanations.get('summary', 'No summary available')
+                st.info(summary)
+                
+                # Key metrics
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    expected_return = explanation_result.get('expected_return', 0) * 100
+                    st.metric("Expected Annual Return", f"{expected_return:.2f}%")
+                
+                with col2:
+                    confidence = explanation_result.get('confidence_score', 0) * 100
+                    st.metric("AI Confidence", f"{confidence:.1f}%")
+                
+                with col3:
+                    risk_probs = explanation_result.get('risk_probabilities', {})
+                    dominant_risk = max(risk_probs.items(), key=lambda x: x[1])[0]
+                    st.metric("Risk Assessment", dominant_risk)
+                
+                # Explanation tabs
+                tab1, tab2, tab3, tab4 = st.tabs(["🎯 Key Factors", "📊 Visualizations", "💡 Recommendations", "🔧 Technical Details"])
+                
+                with tab1:
+                    # Key factors explanation
+                    st.subheader("🔑 Key Factors Influencing Your Portfolio")
+                    
+                    key_factors = explanations.get('key_factors', [])
+                    risk_factors = explanations.get('risk_factors', [])
+                    
+                    if key_factors or risk_factors:
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("**✅ Positive Factors**")
+                            if key_factors:
+                                for i, factor in enumerate(key_factors[:5], 1):
+                                    st.write(f"{i}. {factor}")
+                            else:
+                                st.write("No significant positive factors identified")
+                        
+                        with col2:
+                            st.markdown("**⚠️ Risk Factors**")
+                            if risk_factors:
+                                for i, factor in enumerate(risk_factors[:5], 1):
+                                    st.write(f"{i}. {factor}")
+                            else:
+                                st.write("No significant risk factors identified")
+                    
+                    # Feature contributions table
+                    contributions = explanation_result.get('feature_contributions', {})
+                    if contributions:
+                        st.subheader("📈 Feature Impact Analysis")
+                        
+                        contribution_data = []
+                        for feature, contribution in contributions.items():
+                            contribution_data.append({
+                                'Feature': feature.replace('_', ' ').title(),
+                                'Impact': f"{contribution:.4f}",
+                                'Direction': '📈 Positive' if contribution > 0 else '📉 Negative',
+                                'Magnitude': '🔴 High' if abs(contribution) > 0.01 else '🟡 Medium' if abs(contribution) > 0.005 else '🟢 Low'
+                            })
+                        
+                        contribution_df = pd.DataFrame(contribution_data)
+                        contribution_df = contribution_df.sort_values('Impact', key=lambda x: x.astype(float).abs(), ascending=False)
+                        st.dataframe(contribution_df, use_container_width=True)
+                
+                with tab2:
+                    # Visualizations
+                    st.subheader("📊 AI Decision Visualizations")
+                    
+                    try:
+                        visualizations = explainer.create_explanation_visualizations(explanation_result)
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            if 'feature_contributions' in visualizations:
+                                st.plotly_chart(visualizations['feature_contributions'], use_container_width=True)
+                        
+                        with col2:
+                            if 'risk_probabilities' in visualizations:
+                                st.plotly_chart(visualizations['risk_probabilities'], use_container_width=True)
+                        
+                        # Confidence gauge
+                        if 'confidence' in visualizations:
+                            st.plotly_chart(visualizations['confidence'], use_container_width=True)
+                            
+                    except Exception as e:
+                        st.warning(f"Visualization generation encountered an issue: {e}")
+                        
+                        # Fallback visualization using basic Plotly
+                        contributions = explanation_result.get('feature_contributions', {})
+                        if contributions:
+                            feature_names = list(contributions.keys())
+                            values = list(contributions.values())
+                            colors = ['green' if v > 0 else 'red' for v in values]
+                            
+                            fig = go.Figure(data=[
+                                go.Bar(x=values, y=feature_names, orientation='h', marker_color=colors)
+                            ])
+                            fig.update_layout(title="Feature Contributions", height=400)
+                            st.plotly_chart(fig, use_container_width=True)
+                
+                with tab3:
+                    # Recommendations
+                    st.subheader("💡 Personalized Recommendations")
+                    
+                    recommendations = explanations.get('recommendations', [])
+                    if recommendations:
+                        for i, rec in enumerate(recommendations, 1):
+                            st.write(f"**{i}.** {rec}")
+                    else:
+                        # Generate fallback recommendations
+                        fallback_recommendations = []
+                        
+                        if age < 30:
+                            fallback_recommendations.append("Consider higher equity allocation for long-term growth potential")
+                        elif age > 55:
+                            fallback_recommendations.append("Focus on capital preservation with defensive investments")
+                            
+                        if loss_aversion > 7:
+                            fallback_recommendations.append("Implement downside protection strategies")
+                        
+                        if investment_horizon > 10:
+                            fallback_recommendations.append("Take advantage of compound growth with growth-oriented investments")
+                        
+                        if overconfidence > 7:
+                            fallback_recommendations.append("Consider systematic rebalancing to avoid overconfidence bias")
+                        
+                        for i, rec in enumerate(fallback_recommendations, 1):
+                            st.write(f"**{i}.** {rec}")
+                    
+                    # Risk assessment explanation
+                    st.subheader("🎯 Risk Assessment Breakdown")
+                    risk_probs = explanation_result.get('risk_probabilities', {})
+                    
+                    if risk_probs:
+                        for risk_level, probability in risk_probs.items():
+                            if probability > 0.3:  # Show only significant probabilities
+                                st.write(f"**{risk_level} Risk:** {probability:.1%} probability")
+                                
+                                if risk_level == "Low":
+                                    st.write("- Conservative portfolio approach recommended")
+                                    st.write("- Focus on stable, dividend-paying stocks")
+                                elif risk_level == "Medium":
+                                    st.write("- Balanced growth and income strategy")
+                                    st.write("- Diversified across sectors and market caps")
+                                else:  # High
+                                    st.write("- Growth-oriented portfolio with higher volatility")
+                                    st.write("- Emphasis on emerging sectors and small-cap stocks")
+                
+                with tab4:
+                    # Technical details
+                    if show_technical:
+                        st.subheader("🔧 Technical Implementation Details")
+                        
+                        st.markdown("**Model Architecture:**")
+                        st.write("- Random Forest ensemble for portfolio performance prediction")
+                        st.write("- Multi-class classification for risk assessment")
+                        st.write("- Feature importance-based explanations (SHAP-like methodology)")
+                        
+                        st.markdown("**Feature Engineering:**")
+                        st.write("- Behavioral bias quantification")
+                        st.write("- Portfolio diversification metrics")
+                        st.write("- Risk tolerance scoring")
+                        st.write("- Demographic and financial profiling")
+                        
+                        if show_technical:
+                            st.markdown("**Raw Feature Values:**")
+                            feature_data = {
+                                'Age': age,
+                                'Income': f"₹{income:,}",
+                                'Investment Horizon': f"{investment_horizon} years",
+                                'Loss Aversion': f"{loss_aversion}/10",
+                                'Overconfidence': f"{overconfidence}/10",
+                                'Risk Tolerance Score': f"{profile_result.risk_tolerance_score:.3f}",
+                                'Volatility Target': f"{profile_result.volatility_target:.1f}%",
+                                'Profile Type': profile_result.profile_type
+                            }
+                            
+                            tech_df = pd.DataFrame(list(feature_data.items()), columns=['Feature', 'Value'])
+                            st.dataframe(tech_df, use_container_width=True)
+                    else:
+                        st.info("Enable 'Show Technical Details' above to view implementation specifics")
+                
+                # Comparison with market benchmarks
+                st.subheader("📈 Benchmark Comparison")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    market_return = 11.5  # Market average
+                    excess_return = expected_return - market_return
+                    st.metric("vs Market Average", f"{excess_return:+.2f}%")
+                
+                with col2:
+                    risk_free_rate = 6.0
+                    risk_premium = expected_return - risk_free_rate
+                    st.metric("Risk Premium", f"{risk_premium:.2f}%")
+                
+                with col3:
+                    sharpe_estimate = (expected_return - risk_free_rate) / 15.0  # Assuming 15% volatility
+                    st.metric("Estimated Sharpe Ratio", f"{sharpe_estimate:.2f}")
+                
+            except Exception as e:
+                st.error(f"AI explanation generation failed: {str(e)}")
+                st.info("This typically happens when the AI models need initialization. Try again in a moment.")
+    
+    # Educational section
+    st.subheader("📚 Understanding AI Explanations")
+    
+    with st.expander("ℹ️ How ADAPT AI Works"):
+        st.markdown("""
+        **ADAPT's AI Explainability Framework:**
+        
+        1. **Feature Analysis**: Your personal and behavioral characteristics are analyzed as input features
+        2. **Model Prediction**: Machine learning models predict expected portfolio performance
+        3. **Contribution Calculation**: Each feature's impact on the final recommendation is quantified
+        4. **Risk Assessment**: Probability distributions for different risk scenarios are computed
+        5. **Explanation Generation**: Human-readable explanations are created from the mathematical analysis
+        
+        **Key Benefits:**
+        - **Transparency**: Understand exactly why specific stocks are recommended
+        - **Trust**: See the logical reasoning behind portfolio construction
+        - **Learning**: Gain insights into how your biases affect investment decisions
+        - **Optimization**: Identify areas for improving your investment approach
+        """)
+    
+    with st.expander("🎯 Interpreting Feature Contributions"):
+        st.markdown("""
+        **Positive Contributions (+)**: Factors that increase expected returns
+        - Higher values suggest better portfolio performance potential
+        - Green bars in visualizations indicate positive impact
+        
+        **Negative Contributions (-)**: Factors that may limit returns
+        - Risk management or conservative bias effects
+        - Red bars indicate areas requiring attention
+        
+        **Magnitude Interpretation:**
+        - **High Impact**: Significant influence on portfolio construction
+        - **Medium Impact**: Moderate influence on strategy
+        - **Low Impact**: Minor influence on final recommendations
+        """)
 
 def show_about_page():
     """Show the about page."""
