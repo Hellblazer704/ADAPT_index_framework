@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # Streamlit Frontend
+  adapt-frontend:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - adapt-backend
+    networks:
+      - adapt-network
+    restart: unless-stopped
+
+  # FastAPI Backend
+  adapt-backend:
+    build: .
+    ports:
+      - "8000:8000"
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - adapt-network
+    restart: unless-stopped
+
+  # PostgreSQL Database (optional)
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: adapt_db
+      POSTGRES_USER: adapt_user
+      POSTGRES_PASSWORD: adapt_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - adapt-network
+    restart: unless-stopped
+
+  # Redis Cache (optional)
+  redis:
+    image: redis:6-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - adapt-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  adapt-network:
+    driver: bridge 
